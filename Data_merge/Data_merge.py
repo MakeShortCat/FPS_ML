@@ -7,6 +7,7 @@ date_str_folder = datetime.now().strftime("%Y-%m-%d")
 
 # kill_log = pd.read_csv(f'FPS_ML_project/logs/{date_str_folder}/kill_{date_str}.txt')
 
+#킬로그 불러오기
 kill_log = pd.read_csv('FPS_ML_project/logs/2023-03-20/kill_2023-03-20 00.txt',
                         header=None, names=['action', 'date_time'])
 
@@ -31,8 +32,6 @@ merged_log = merged_log[['date_time', 'action', 'actual_action', 'target_num']]
 
 merged_log['actual_action'] = merged_log['action'].str.replace('Mouse moved to ', '')
 
-merged_log
-
 index1 = merged_log[merged_log['actual_action'].str.startswith('(') == True].index
 
 merged_log['actual_action_1'] = np.nan
@@ -50,6 +49,7 @@ key_cols = ['w', 'a', 's', 'd', 'ctrl', 'q', 'e', 'c', 'shift']
 
 merged_log[key_cols] = 0
 
+# 눌렀다는 로그에 1, 뗀 로그는 2, 아무 행동 없을때는 0으로 표시
 for cols in key_cols:
     merged_log[cols] = merged_log['action'].apply(lambda x: 1 if x ==  f"'{cols}' pressed" else
                                                         2 if x== f"'{cols}' released"
@@ -65,6 +65,7 @@ merged_log['click_right'] = merged_log['action'].apply(lambda x: 1 if x.startswi
 
 key_cols.extend(['click_left','click_right'])
 
+#위치정보를 활용해서 1(누름 로그)부터 2(키보드 뗌 로그)사이에 있는 모든 입력값을 누르고 있다 뜻인 1로 바꿈
 import numpy as np
 for col in key_cols:
     s = merged_log[col].values
@@ -80,6 +81,7 @@ for col in key_cols:
 
 kill_num = 0
 
+# 킬 데쓰 로그 2초전에 있는 모든 로그를 가져옴 0.2, 1.2 안가져오는 이유는 킬로그 카운터 때문에 조금 늦게 로그가 찍히기 때문
 for i in range(len(merged_log)):
     if merged_log['action'].iloc[i] == 'kill':
         kill_num += 1
@@ -126,6 +128,8 @@ def calculate_speeds_for_target_num(target_num):
         speed_list.append(speed)
     return pd.Series(speed_list, index=target_num_log.index[:-1])
 
+# 병렬처리 사용하여 계산(더 나은 방법 찾아보기 필요)
+
 if __name__ == '__main__':
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(calculate_speeds_for_target_num, target_num) for target_num in merged_log.target_num.unique()]
@@ -145,6 +149,11 @@ FPS_player_data['Mouse_Acceleration_Max'] = merged_log.groupby('target_num').max
 
 mouse_keybords_summery = pd.DataFrame(columns = ['target_num', 'Mouse-Keybord_mean', 'Mouse-Keybord_max', 'Mouse-Keybord_min'])
 
+
+# 2차원 array인 점을 생각해서 눌렀다는 값이 있는 곳을 파악함 만약 그 위치 차이가 1이 아닌경우 눌렀다 떼고 다시 누른것이므로
+# 첫번째 값 뿐만이 아닌 다시 누른것 또한 최종적인 정보에 포함되어야함
+# wasd와 클릭의 시간을 계산하는 알고리즘
+
 for target_num in merged_log.target_num.unique():
     mouse_keybords = []
     key_press = merged_log[merged_log['target_num'] == target_num][['w','a','s','d','click_left']].values
@@ -162,13 +171,15 @@ for target_num in merged_log.target_num.unique():
     indices3 = np.where(diff3 != 1)[0]
     indices3 = np.insert(indices3, 0, 0)
 
-
+# 마우스 안눌렀을 경우
     if len(mask2) == 0:
         mouse_keybords_summery = mouse_keybords_summery.append({'target_num' : target_num,
                                                         'Mouse-Keybord_mean' : 0, 
                                                         'Mouse-Keybord_max' : 0, 
                                                         'Mouse-Keybord_min' : 0}, ignore_index = True)
         continue
+
+# 여러번번 누른것 혹은 한번 누른것 감지해서 모두 대표값 결과에 포함시킴
 
     if len(indices1) > 0 and len(indices1) == len(indices2):
         for i, j in zip(indices1, indices2):
@@ -180,6 +191,10 @@ for target_num in merged_log.target_num.unique():
                                                             'Mouse-Keybord_mean' : np.mean(mouse_keybords), 
                                                             'Mouse-Keybord_max' : np.max(mouse_keybords), 
                                                             'Mouse-Keybord_min' : np.min(mouse_keybords)}, ignore_index = True)
+
+# 키보드 누른 시간 계산
+# 위알고리즘과 마찬가지로 어려번 누른것도 포함
+
 key_press_time = []
 key_press_time_sum = []
 for target_num in merged_log.target_num.unique():
@@ -202,13 +217,13 @@ for target_num in merged_log.target_num.unique():
     key_press_time_sum.append(np.sum(key_press_time))
 
     key_press_time = []
-    
 
 
 mouse_keybords_summery['key_press_time'] = key_press_time_sum
 
 grouped = merged_log.groupby('target_num')
 
+# 움직인 거리 계산
 total_distance = grouped.apply(lambda x: np.sum(np.sqrt((x['x'] - x['x'].shift())**2 + (x['y'] - x['y'].shift())**2)))
 x_distance = grouped.apply(lambda x: np.sum(np.abs(x['x'] - x['x'].shift())))
 y_distance = grouped.apply(lambda x: np.sum(np.abs(x['y'] - x['y'].shift())))
