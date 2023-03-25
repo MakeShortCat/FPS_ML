@@ -230,20 +230,11 @@ import matplotlib.pyplot as plt
 y_pred = lr.predict(X_test_mmScaled)
 cm = confusion_matrix(y_test, y_pred)
 
-# Confusion Matrix 시각화
-plt.matshow(cm, cmap=plt.cm.Blues)
-plt.colorbar()
-plt.xlabel('Predicted')
-plt.ylabel('Actual')
-plt.xticks([0, 1], ['Negative', 'Positive'])
-plt.yticks([0, 1], ['Negative', 'Positive'])
-plt.show()
-
 from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 
 # 모델 예측값으로 ROC Curve 생성
-y_score = lr.decision_function(X_test)
+y_score = lr.predict_proba(X_test_mmScaled)[:,1]
 fpr, tpr, _ = roc_curve(y_test, y_score)
 roc_auc = auc(fpr, tpr)
 
@@ -289,7 +280,7 @@ lr = LogisticRegression(C = 1, solver = 'liblinear')
 lr.fit(X_poly_train, y_train)
 
 # 모델 예측값으로 ROC Curve 생성
-y_score = lr.decision_function(X_poly_test)
+y_score = lr.predict_proba(X_poly_test)[:,1]
 fpr, tpr, _ = roc_curve(y_test, y_score)
 roc_auc = auc(fpr, tpr)
 
