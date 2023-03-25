@@ -67,9 +67,140 @@ import numpy as np
 import pandas as pd
 
 #분류 시작
+#RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import roc_curve, auc
+import matplotlib.pyplot as plt
+
+parameters = {'n_estimators': [10, 50, 100, 200],
+              'max_depth': [5, 10, 20, 30],
+              'min_samples_split': [2, 5, 10],
+              'min_samples_leaf': [5, 10, 20]}
+
+rfc = RandomForestClassifier(random_state=100)
+
+grid_rfc = GridSearchCV(rfc, parameters, cv=5)
+grid_rfc.fit(X_train, y_train)
+
+print("Best parameters for RandomForestClassifier:", grid_rfc.best_params_)
+print("Best score for RandomForestClassifier:", grid_rfc.best_score_)
+
+# 최적의 하이퍼파라미터를 사용하여 모델 생성
+best_rfc = RandomForestClassifier(random_state=100, **grid_rfc.best_params_)
+best_rfc.fit(X_train, y_train)
+
+# 테스트 데이터에 대한 예측 수행
+rfc_pred = best_rfc.predict(X_test)
+
+# 정확도 계산
+accuracy = accuracy_score(y_test, rfc_pred)
+print("Accuracy:", accuracy)
+
+# ROC curve 계산
+y_score = best_rfc.predict_proba(X_test)[:,1]
+fpr, tpr, _ = roc_curve(y_test, y_score)
+roc_auc = auc(fpr, tpr)
+
+fig, (ax1, ax2, ax3) = plt.subplots(nrows=1, ncols=3, figsize=(24, 8))
+
+# ROC curve 시각화
+ax1.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (AUC = %0.2f)' % roc_auc)
+ax1.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+ax1.set_xlabel('False Positive Rate')
+ax1.set_ylabel('True Positive Rate')
+ax1.set_title('RFC ROC curve')
+ax1.legend(loc="lower right")
 
 
+#XGBClassifier
+from xgboost import XGBClassifier
+from sklearn.preprocessing import StandardScaler
 
+S_Scaler = StandardScaler()
+
+S_Scaler.fit(X_train)
+
+X_train_StandardS = S_Scaler.transform(X_train)
+X_test_StandardS = S_Scaler.transform(X_test)
+
+parameters = {'n_estimators': [50, 100, 200],
+              'max_depth': [3, 6, 9, 12, 24],
+              'learning_rate': [0.01, 0.05, 0.1],
+              'gamma': [0.05, 0.1, 0.2, 1, 10]}
+
+xgb = XGBClassifier(random_state=100)
+
+grid_xgb = GridSearchCV(xgb, parameters, cv=5)
+grid_xgb.fit(X_train_StandardS, y_train)
+
+print("Best parameters for XGBClassifier:", grid_xgb.best_params_)
+print("Best score for XGBClassifier:", grid_xgb.best_score_)
+
+# 최적의 하이퍼파라미터를 사용하여 모델 생성
+best_XGB = XGBClassifier(random_state=100, **grid_xgb.best_params_)
+best_XGB.fit(X_train_StandardS, y_train)
+
+# 테스트 데이터에 대한 예측 수행
+XGB_pred = best_XGB.predict(X_test_StandardS)
+
+# 정확도 계산
+accuracy = accuracy_score(y_test, XGB_pred)
+print("Accuracy:", accuracy)
+
+# ROC curve 계산
+y_score = best_XGB.predict_proba(X_test_StandardS)[:,1]
+fpr, tpr, _ = roc_curve(y_test, y_score)
+roc_auc = auc(fpr, tpr)
+
+# ROC curve 시각화
+ax2.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (AUC = %0.2f)' % roc_auc)
+ax2.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+ax2.set_xlabel('False Positive Rate')
+ax2.set_ylabel('True Positive Rate')
+ax2.set_title('XGB ROC curve')
+ax2.legend(loc="lower right")
+
+#SVC
+from sklearn.svm import SVC
+
+parameters = {'C': [0.1, 1, 10, 100],
+              'kernel': ['linear', 'rbf', 'sigmoid'],
+              'gamma' : [0.01, 0.1, 1, 10]}
+
+svc = SVC(random_state=100)
+
+grid_svc = GridSearchCV(svc, parameters, cv=5)
+grid_svc.fit(X_train_StandardS, y_train)
+
+print("Best parameters for SVC:", grid_svc.best_params_)
+print("Best score for SVC:", grid_svc.best_score_)
+
+# 최적의 하이퍼파라미터를 사용하여 모델 생성
+best_svc = SVC(random_state=100, **grid_svc.best_params_, probability=True)
+best_svc.fit(X_train_StandardS, y_train)
+
+# 테스트 데이터에 대한 예측 수행
+svc_pred = best_svc.predict(X_test_StandardS)
+
+# 정확도 계산
+accuracy = accuracy_score(y_test, svc_pred)
+print("Accuracy:", accuracy)
+
+# ROC curve 계산
+y_score = best_svc.predict_proba(X_test_StandardS)[:,1]
+fpr, tpr, _ = roc_curve(y_test, y_score)
+roc_auc = auc(fpr, tpr)
+
+# ROC curve 시각화
+ax3.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (AUC = %0.2f)' % roc_auc)
+ax3.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+ax3.set_xlabel('False Positive Rate')
+ax3.set_ylabel('True Positive Rate')
+ax3.set_title('SVC ROC curve')
+ax3.legend(loc="lower right")
+plt.show()
 
 #LogisticRegression 시작
 from sklearn.linear_model import LogisticRegression
